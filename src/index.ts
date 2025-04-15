@@ -16,8 +16,16 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 
 import { mainnet, publicClient } from './constants/chain';
-import { MORSE, TransferEventABI } from './constants/morse';
+import {
+  MORSE,
+  MORSE_MIRROR,
+  TransferEventABI,
+  safeTransferFromABI,
+  safeTransferFromWithDataABI,
+} from './constants/morse';
 import { REROLLER_V3_1 } from './constants/reroller';
+import { displayImageFromURL } from './image';
+import { getMorseImage } from './image';
 
 export const getMintedTokenIDFromReceipt = (
   receipt: TransactionReceipt,
@@ -115,61 +123,57 @@ const main = async () => {
   console.log(account.address);
   await approveMorse(walletClient);
 
-  const initialTokenID = 7067n;
+  const initialTokenID = 7168n;
+  const targetTokenID = 7395n;
 
-  let mintedTokenID = 0n;
-  {
+  let currentTokenID = initialTokenID;
+
+  while (currentTokenID !== targetTokenID) {
+    let mintedTokenID = 0n;
+    {
+      const hash = await walletClient.writeContract({
+        address: MORSE_MIRROR,
+        abi: [safeTransferFromABI],
+        functionName: 'safeTransferFrom',
+        args: [account.address, REROLLER_V3_1.address, initialTokenID],
+      });
+      console.log(hash);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      mintedTokenID = BigInt(
+        getMintedTokenIDFromReceipt(receipt, account) || 0,
+      );
+    }
+    if (mintedTokenID === targetTokenID) {
+      currentTokenID = mintedTokenID;
+      console.log('Target token ID reached!');
+      break;
+    }
+    // minted 보다 최대 100n 큰 값이 limitTokenID. 가능하면 targetTokenID 으로 설정.
+    let limitTokenID = mintedTokenID + 100n;
+    if (limitTokenID > targetTokenID) {
+      limitTokenID = targetTokenID;
+    }
     const hash = await walletClient.writeContract({
-      address: '0x027DA47D6a5692c9b5cB64301A07d978cE3cB16c', // mirror
-      abi: [
-        {
-          inputs: [
-            { internalType: 'address', name: 'from', type: 'address' },
-            { internalType: 'address', name: 'to', type: 'address' },
-            { internalType: 'uint256', name: 'id', type: 'uint256' },
-          ],
-          name: 'safeTransferFrom',
-          outputs: [],
-          stateMutability: 'payable',
-          type: 'function',
-        },
-      ],
+      address: MORSE_MIRROR,
+      abi: [safeTransferFromWithDataABI],
       functionName: 'safeTransferFrom',
-      args: [account.address, REROLLER_V3_1.address, initialTokenID],
+      args: [
+        account.address,
+        REROLLER_V3_1.address,
+        mintedTokenID,
+        encodePacked(['uint256'], [limitTokenID]),
+      ],
     });
     console.log(hash);
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    mintedTokenID = BigInt(getMintedTokenIDFromReceipt(receipt, account) || 0);
+    const tokenID = getMintedTokenIDFromReceipt(receipt, account);
+    console.log('Rerolled!', [tokenID]);
+    currentTokenID = BigInt(tokenID || 0);
+
+    displayImageFromURL(await getMorseImage(Number(currentTokenID)));
   }
 
-  const hash = await walletClient.writeContract({
-    address: '0x027DA47D6a5692c9b5cB64301A07d978cE3cB16c', // mirror
-    abi: [
-      {
-        inputs: [
-          { internalType: 'address', name: 'from', type: 'address' },
-          { internalType: 'address', name: 'to', type: 'address' },
-          { internalType: 'uint256', name: 'id', type: 'uint256' },
-          { internalType: 'bytes', name: 'data', type: 'bytes' },
-        ],
-        name: 'safeTransferFrom',
-        outputs: [],
-        stateMutability: 'payable',
-        type: 'function',
-      },
-    ],
-    functionName: 'safeTransferFrom',
-    args: [
-      account.address,
-      REROLLER_V3_1.address,
-      mintedTokenID,
-      encodePacked(['uint256'], [mintedTokenID + 100n]),
-    ],
-  });
-  console.log(hash);
-  const receipt = await publicClient.waitForTransactionReceipt({ hash });
-  const tokenID = getMintedTokenIDFromReceipt(receipt, account);
-  console.log([tokenID]);
+  console.log('Done!', { currentTokenID });
 };
 
 main()
