@@ -27,6 +27,27 @@ import { REROLLER_V3_1 } from './constants/reroller';
 import { displayImageFromURL } from './image';
 import { getMorseImage } from './image';
 
+dotenv.config();
+
+const isSameAddress = (a: Address, b: Address) => {
+  return a.toLowerCase() === b.toLowerCase();
+};
+
+const approveMorse = async (
+  walletClient: WalletClient<Transport, Chain, Account>,
+) => {
+  console.log('Approving');
+  const hash = await walletClient.writeContract({
+    address: MORSE,
+    abi: erc20Abi,
+    functionName: 'approve',
+    args: [REROLLER_V3_1.address, parseEther('1')],
+  });
+  console.log(hash);
+  await publicClient.waitForTransactionReceipt({ hash });
+  console.log('Approved');
+};
+
 export const getMintedTokenIDFromReceipt = (
   receipt: TransactionReceipt,
   account: Account,
@@ -55,55 +76,6 @@ export const getMintedTokenIDFromReceipt = (
   return tokenID;
 };
 
-const MIRROR_ABI = [
-  {
-    inputs: [
-      { internalType: 'address', name: 'from', type: 'address' },
-      { internalType: 'address', name: 'to', type: 'address' },
-      { internalType: 'uint256', name: 'id', type: 'uint256' },
-    ],
-    name: 'safeTransferFrom',
-    outputs: [],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'address', name: 'from', type: 'address' },
-      { internalType: 'address', name: 'to', type: 'address' },
-      { internalType: 'uint256', name: 'id', type: 'uint256' },
-      { internalType: 'bytes', name: 'data', type: 'bytes' },
-    ],
-    name: 'safeTransferFrom',
-    outputs: [],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-] as const;
-
-dotenv.config();
-
-const ALLOWED = [6991n];
-
-const isSameAddress = (a: Address, b: Address) => {
-  return a.toLowerCase() === b.toLowerCase();
-};
-
-const approveMorse = async (
-  walletClient: WalletClient<Transport, Chain, Account>,
-) => {
-  console.log('Approving');
-  const hash = await walletClient.writeContract({
-    address: MORSE,
-    abi: erc20Abi,
-    functionName: 'approve',
-    args: [REROLLER_V3_1.address, parseEther('1')],
-  });
-  console.log(hash);
-  await publicClient.waitForTransactionReceipt({ hash });
-  console.log('Approved');
-};
-
 const main = async () => {
   let pk = process.env.PRIVATE_KEY;
   if (pk?.startsWith('0x')) {
@@ -123,7 +95,7 @@ const main = async () => {
   console.log(account.address);
   await approveMorse(walletClient);
 
-  const initialTokenID = 7168n;
+  const initialTokenID = 7269n;
   const targetTokenID = 7395n;
 
   let currentTokenID = initialTokenID;
@@ -148,7 +120,7 @@ const main = async () => {
       console.log('Target token ID reached!');
       break;
     }
-    // minted 보다 최대 100n 큰 값이 limitTokenID. 가능하면 targetTokenID 으로 설정.
+
     let limitTokenID = mintedTokenID + 100n;
     if (limitTokenID > targetTokenID) {
       limitTokenID = targetTokenID;
