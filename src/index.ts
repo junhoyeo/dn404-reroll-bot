@@ -135,7 +135,7 @@ const main = async () => {
         address: MORSE_MIRROR,
         abi: [safeTransferFromABI],
         functionName: 'safeTransferFrom',
-        args: [account.address, REROLLER_V3_1.address, initialTokenID],
+        args: [account.address, REROLLER_V3_1.address, currentTokenID],
       });
       console.log(hash);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -170,7 +170,7 @@ const main = async () => {
     console.log('Rerolled!', [tokenID]);
     currentTokenID = BigInt(tokenID || 0);
 
-    displayImageFromURL(await getMorseImage(Number(currentTokenID)));
+    await displayImageFromURL(await getMorseImage(Number(currentTokenID)));
   }
 
   console.log('Done!', { currentTokenID });
