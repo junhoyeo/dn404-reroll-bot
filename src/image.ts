@@ -3,7 +3,7 @@ import terminalImage from 'terminal-image';
 import { erc721Abi } from 'viem';
 
 import { publicClient } from './constants/chain';
-import { MORSE } from './constants/morse';
+import { DN404 } from './constants/dn404';
 
 export const displayImageFromURL = async (url: string) => {
   const response = await ky.get(url);
@@ -19,9 +19,9 @@ const resolveIPFS = (uri: string) => {
   return uri;
 };
 
-export const getMorseImage = async (tokenId: number) => {
+export const getDN404Image = async (tokenId: number) => {
   const metadataURI = await publicClient.readContract({
-    address: MORSE,
+    address: DN404,
     abi: erc721Abi,
     functionName: 'tokenURI',
     args: [BigInt(tokenId)],

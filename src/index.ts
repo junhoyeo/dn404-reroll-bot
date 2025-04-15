@@ -17,15 +17,15 @@ import { privateKeyToAccount } from 'viem/accounts';
 
 import { mainnet, publicClient } from './constants/chain';
 import {
-  MORSE,
-  MORSE_MIRROR,
+  DN404,
+  DN404_MIRROR,
   TransferEventABI,
   safeTransferFromABI,
   safeTransferFromWithDataABI,
-} from './constants/morse';
+} from './constants/dn404';
 import { REROLLER_V3_1 } from './constants/reroller';
 import { displayImageFromURL } from './image';
-import { getMorseImage } from './image';
+import { getDN404Image } from './image';
 
 dotenv.config();
 
@@ -33,12 +33,12 @@ const isSameAddress = (a: Address, b: Address) => {
   return a.toLowerCase() === b.toLowerCase();
 };
 
-const approveMorse = async (
+const approveDN404 = async (
   walletClient: WalletClient<Transport, Chain, Account>,
 ) => {
   console.log('Approving');
   const hash = await walletClient.writeContract({
-    address: MORSE,
+    address: DN404,
     abi: erc20Abi,
     functionName: 'approve',
     args: [REROLLER_V3_1.address, parseEther('1')],
@@ -93,18 +93,20 @@ const main = async () => {
   });
 
   console.log(account.address);
-  await approveMorse(walletClient);
 
-  const initialTokenID = 7269n;
-  const targetTokenID = 7395n;
+  if (!process.env.CURRENT_TOKEN_ID || !process.env.TARGET_TOKEN_ID) {
+    throw new Error('CURRENT_TOKEN_ID or/and TARGET_TOKEN_ID is not set');
+  }
+  let currentTokenID = BigInt(process.env.CURRENT_TOKEN_ID);
+  const targetTokenID = BigInt(process.env.TARGET_TOKEN_ID);
 
-  let currentTokenID = initialTokenID;
+  await approveDN404(walletClient);
 
   while (currentTokenID !== targetTokenID) {
     let mintedTokenID = 0n;
     {
       const hash = await walletClient.writeContract({
-        address: MORSE_MIRROR,
+        address: DN404_MIRROR,
         abi: [safeTransferFromABI],
         functionName: 'safeTransferFrom',
         args: [account.address, REROLLER_V3_1.address, currentTokenID],
@@ -126,7 +128,7 @@ const main = async () => {
       limitTokenID = targetTokenID;
     }
     const hash = await walletClient.writeContract({
-      address: MORSE_MIRROR,
+      address: DN404_MIRROR,
       abi: [safeTransferFromWithDataABI],
       functionName: 'safeTransferFrom',
       args: [
@@ -142,7 +144,7 @@ const main = async () => {
     console.log('Rerolled!', [tokenID]);
     currentTokenID = BigInt(tokenID || 0);
 
-    await displayImageFromURL(await getMorseImage(Number(currentTokenID)));
+    await displayImageFromURL(await getDN404Image(Number(currentTokenID)));
   }
 
   console.log('Done!', { currentTokenID });

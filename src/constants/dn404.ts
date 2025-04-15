@@ -1,5 +1,11 @@
-export const MORSE = '0xe591293151fFDadD5E06487087D9b0E2743de92E';
-export const MORSE_MIRROR = '0x027DA47D6a5692c9b5cB64301A07d978cE3cB16c';
+import { Address } from 'viem';
+
+export const DN404 =
+  (process.env.DN404_ADDRESS as Address | undefined) ||
+  '0xe591293151fFDadD5E06487087D9b0E2743de92E';
+export const DN404_MIRROR =
+  (process.env.DN404_MIRROR_ADDRESS as Address | undefined) ||
+  '0x027DA47D6a5692c9b5cB64301A07d978cE3cB16c';
 
 export const TransferEventABI = {
   anonymous: false,
