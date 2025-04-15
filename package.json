@@ -1,0 +1,21 @@
+{
+  "name": "morse-reroll-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/junhoyeo/morse-reroll-bot",
+  "author": "Junho Yeo <i@junho.io>",
+  "license": "MIT",
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+    "@types/node": "^22.14.1",
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "ky": "^1.8.1",
+    "terminal-image": "^3.1.1",
+    "viem": "^2.27.0"
+  }
+}

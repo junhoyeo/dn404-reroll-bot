@@ -1,0 +1,9 @@
+deps
+cursor
+
+# docs
+build
+.vercel
+
+# web
+.next
