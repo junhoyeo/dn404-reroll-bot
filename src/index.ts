@@ -3,10 +3,12 @@ import {
   Account,
   Address,
   Chain,
+  TransactionReceipt,
   Transport,
   WalletClient,
   createWalletClient,
   decodeEventLog,
+  encodePacked,
   erc20Abi,
   http,
   parseEther,
@@ -15,7 +17,61 @@ import { privateKeyToAccount } from 'viem/accounts';
 
 import { mainnet, publicClient } from './constants/chain';
 import { MORSE, TransferEventABI } from './constants/morse';
-import { REROLLER } from './constants/reroller';
+import { REROLLER_V3_1 } from './constants/reroller';
+
+export const getMintedTokenIDFromReceipt = (
+  receipt: TransactionReceipt,
+  account: Account,
+) => {
+  const tokenID =
+    receipt.logs.flatMap((log) => {
+      try {
+        const event = decodeEventLog({
+          abi: [TransferEventABI],
+          data: log.data,
+          topics: log.topics,
+        });
+        if (!event) {
+          return [];
+        }
+        if (isSameAddress(event.args.to, account.address)) {
+          console.log([event.args.from, event.args.to, event.args.id]);
+          return event.args.id;
+        }
+        return [];
+      } catch (error) {
+        return [];
+      }
+    })?.[0] || null;
+  console.log([tokenID]);
+  return tokenID;
+};
+
+const MIRROR_ABI = [
+  {
+    inputs: [
+      { internalType: 'address', name: 'from', type: 'address' },
+      { internalType: 'address', name: 'to', type: 'address' },
+      { internalType: 'uint256', name: 'id', type: 'uint256' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'from', type: 'address' },
+      { internalType: 'address', name: 'to', type: 'address' },
+      { internalType: 'uint256', name: 'id', type: 'uint256' },
+      { internalType: 'bytes', name: 'data', type: 'bytes' },
+    ],
+    name: 'safeTransferFrom',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+] as const;
 
 dotenv.config();
 
@@ -33,7 +89,7 @@ const approveMorse = async (
     address: MORSE,
     abi: erc20Abi,
     functionName: 'approve',
-    args: [REROLLER.address, parseEther('10')],
+    args: [REROLLER_V3_1.address, parseEther('1')],
   });
   console.log(hash);
   await publicClient.waitForTransactionReceipt({ hash });
@@ -59,48 +115,61 @@ const main = async () => {
   console.log(account.address);
   await approveMorse(walletClient);
 
-  let i = 0;
-  while (true) {
+  const initialTokenID = 7067n;
+
+  let mintedTokenID = 0n;
+  {
     const hash = await walletClient.writeContract({
-      address: REROLLER.address,
-      abi: REROLLER.metadata.output.abi,
-      functionName: 'reroll',
-      args: [13544561693449094n],
+      address: '0x027DA47D6a5692c9b5cB64301A07d978cE3cB16c', // mirror
+      abi: [
+        {
+          inputs: [
+            { internalType: 'address', name: 'from', type: 'address' },
+            { internalType: 'address', name: 'to', type: 'address' },
+            { internalType: 'uint256', name: 'id', type: 'uint256' },
+          ],
+          name: 'safeTransferFrom',
+          outputs: [],
+          stateMutability: 'payable',
+          type: 'function',
+        },
+      ],
+      functionName: 'safeTransferFrom',
+      args: [account.address, REROLLER_V3_1.address, initialTokenID],
     });
     console.log(hash);
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    const tokenID =
-      receipt.logs.flatMap((log) => {
-        try {
-          const event = decodeEventLog({
-            abi: [TransferEventABI],
-            data: log.data,
-            topics: log.topics,
-          });
-          if (!event) {
-            return [];
-          }
-          // address -> null 이니까 이건 새로 받은 게 아님
-          if (isSameAddress(event.args.from, account.address)) {
-            return [];
-          }
-          console.log([event.args.from, event.args.to, event.args.id]);
-          return event.args.id;
-        } catch (error) {
-          return [];
-        }
-      })?.[0] || null;
-    console.log([tokenID]);
-
-    if (tokenID !== null && ALLOWED.includes(tokenID)) {
-      console.log('Allowed');
-      break;
-    } else {
-      console.log('Still rolling');
-    }
-
-    i++;
+    mintedTokenID = BigInt(getMintedTokenIDFromReceipt(receipt, account) || 0);
   }
+
+  const hash = await walletClient.writeContract({
+    address: '0x027DA47D6a5692c9b5cB64301A07d978cE3cB16c', // mirror
+    abi: [
+      {
+        inputs: [
+          { internalType: 'address', name: 'from', type: 'address' },
+          { internalType: 'address', name: 'to', type: 'address' },
+          { internalType: 'uint256', name: 'id', type: 'uint256' },
+          { internalType: 'bytes', name: 'data', type: 'bytes' },
+        ],
+        name: 'safeTransferFrom',
+        outputs: [],
+        stateMutability: 'payable',
+        type: 'function',
+      },
+    ],
+    functionName: 'safeTransferFrom',
+    args: [
+      account.address,
+      REROLLER_V3_1.address,
+      mintedTokenID,
+      encodePacked(['uint256'], [mintedTokenID + 100n]),
+    ],
+  });
+  console.log(hash);
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  const tokenID = getMintedTokenIDFromReceipt(receipt, account);
+  console.log([tokenID]);
 };
 
 main()
